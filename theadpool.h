@@ -1,7 +1,7 @@
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H
 #include <thread>
-#include<future>
+#include <future>
 #include <vector>
 #include <queue>
 class ThreadPool{
@@ -51,6 +51,28 @@ class ThreadPool{
         std::queue<Job> _jobs;
         std::atomic<unsigned short> _threadsWaiting;
         void addThread(unsigned short threadCount) {
+            for (int i = 0; i < threadCount; i++) {
+                _threads.emplace_back([this]() {
+                    while (!_terminate) {                 
+                        Job job;
+                        {
+                            std::unique_lock<std::mutex> jobsLock{ _jobsMutex };
+                            _jobsAvailable.wait(jobsLock, [this] {
+                                return _terminate || !_jobs.empty();
+                                });//wait until have job
+                            if (_terminate && _jobs.empty()) {
+                                return;
+                            }
+                            job = std::move(_jobs.front());
+                            _jobs.pop();
+                        }
+                        _threadsWaiting--;
+                        job();
+                        _threadsWaiting++;
+                    }
+                    });
+                _threadsWaiting++;//wonder if this is meaningless
+            }
         }
 };
 #endif
