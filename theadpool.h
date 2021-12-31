@@ -34,7 +34,7 @@ class ThreadPool{
         auto task = std::make_shared<PackedTask>(std::bind(std::forward<Func>(func), std::forward<Args>(args)...));
         auto result = task->get_future();
         {
-            std::lock_guard<std::mutex> lock{ jobsMutex };
+            std::lock_guard<std::mutex> lock{ _jobsMutex };
             _jobs.emplace([task]() {
                 (*task)();
                 });
